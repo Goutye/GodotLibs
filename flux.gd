@@ -93,7 +93,7 @@ class Tween:
 
 	func _init(object, time, varss, mode, fluxx):
 		flux = fluxx
-		obj = object
+		obj = weakref(object)
 		rate = 1.0 / time if time > 0.0 else 0.0
 		progress = 0.0 if time > 0.0 else 1.0
 		_delay = 0.0
@@ -101,6 +101,10 @@ class Tween:
 		_ease_type = "out"
 		vars = {}
 		var_prev = {}
+		if (!obj.get_ref()):
+			return
+		else:
+			object = obj.get_ref()
 		if mode == 'absolute':
 			for key in varss:
 				match key:
@@ -113,9 +117,19 @@ class Tween:
 					"z":
 						var z = object.get_transform().get_origin().z
 						vars[key] = {start = z, diff = varss[key] - z}
+					"ui_x":
+						var x = object.rect_position.x
+						vars[key] = { start = x, diff = varss[key] - x}
+					"ui_y":
+						var x = object.rect_position.y
+						vars[key] = { start = x, diff = varss[key] - x}
 					"angle":
 						var angle = 0
 						vars[key] = {start = angle, diff = varss[key] - angle}
+					_:
+						var x = object[key]
+						vars[key] = {start = x, diff = varss[key] - x}
+						
 		else:
 			for key in varss:
 				match key:
@@ -128,9 +142,18 @@ class Tween:
 					"z":
 						var z = object.get_transform().get_origin().z
 						vars[key] = {start = z, diff = varss[key]}
+					"ui_x":
+						var x = object.rect_position.x
+						vars[key] = { start = x, diff = varss[key]}
+					"ui_y":
+						var x = object.rect_position.y
+						vars[key] = { start = x, diff = varss[key]}
 					"angle":
 						var angle = 0
 						vars[key] = {start = angle, diff = varss[key]}
+					_:
+						var x = object[key]
+						vars[key] = {start = x, diff = varss[key]}
 
 	func after(time, vars, mode='relative'):
 		var t = flux.Tween.new(self.obj, time, vars, mode, flux)
@@ -156,21 +179,20 @@ class Tween:
 
 
 func to(obj, time, vars, mode='relative'):
-	print('test')
 	return add(Tween.new(obj, time, vars, mode, self))
 
 func add(tween):
 	# Add to object table, create table if it does not exist
 	self.tweens.append(tween)
-	if not self.obj_tweens.has(tween.obj):
-		self.obj_tweens[tween.obj] = {}
+	if not self.obj_tweens.has(tween.obj.get_ref()):
+		self.obj_tweens[tween.obj.get_ref()] = [tween]
 	else:
-		self.obj_tweens[tween.obj].append(tween)
+		self.obj_tweens[tween.obj.get_ref()].append(tween)
 	tween.parent = self
 	return tween
 
 func clear(obj, vars):
-	for t in self.obj_tweens[obj]:
+	for t in self.obj_tweens[obj.get_ref()]:
 		for key in t.vars:
 			if t.vars[key] in vars:
 				t.vars[key] = null
@@ -179,15 +201,17 @@ func clear(obj, vars):
 
 func remove(x):
 	var obj = self.tweens[x].obj
-	if self.obj_tweens[obj] == null:
+	if not self.obj_tweens.has(obj.get_ref()):
 		return
-	self.obj_tweens.erase(obj)
+	self.obj_tweens[obj.get_ref()].erase(self.tweens[x])
 	self.tweens[x] = self.tweens[len(self.tweens) - 1]
 	self.tweens.remove(len(self.tweens) - 1)
 
 func update(deltatime):
 	for i in range(len(self.tweens) - 1, -1, -1):
 		var t = self.tweens[i]
+		if (!t.obj.get_ref()):
+			continue
 		if t._delay > 0:
 			t._delay = t._delay - deltatime
 		else:
@@ -205,19 +229,37 @@ func update(deltatime):
 					if not t.var_prev.has(k):
 						t.var_prev[k] = 0
 					var xvDif = x * v.diff
-					t.obj.translate(Vector2(xvDif - t.var_prev[k], 0))
+					t.obj.get_ref().translate(Vector2(xvDif - t.var_prev[k], 0))
 					t.var_prev[k] = xvDif
+				elif k == "ui_x":
+					if not t.var_prev.has(k):
+						t.var_prev[k] = 0
+					var xvDif = x * v.diff
+					t.obj.get_ref().rect_position.x += (xvDif - t.var_prev[k])
+					t.var_prev[k] = floor(xvDif)
+				elif k == "ui_y":
+					if not t.var_prev.has(k):
+						t.var_prev[k] = 0
+					var xvDif = x * v.diff
+					t.obj.get_ref().rect_position.y += (xvDif - t.var_prev[k])
+					t.var_prev[k] = floor(xvDif)
 				elif k == "y":
 					if not t.var_prev.has(k):
 						t.var_prev[k] = 0
 					var xvDif = x * v.diff
-					t.obj.translate(Vector2(0, xvDif - t.var_prev[k]))
+					t.obj.get_ref().translate(Vector2(0, xvDif - t.var_prev[k]))
 					t.var_prev[k] = xvDif
 				elif k == "angle":
 					if not t.var_prev.has(k):
 						t.var_prev[k] = 0
 					var xvDif = x * v.diff
-					t.obj.rotate(xvDif - t.var_prev[k])
+					t.obj.get_ref().rotate(xvDif - t.var_prev[k])
+					t.var_prev[k] = xvDif
+				else:
+					if not t.var_prev.has(k):
+						t.var_prev[k] = 0
+					var xvDif = x * v.diff
+					t.obj.get_ref()[k] += xvDif - t.var_prev[k]
 					t.var_prev[k] = xvDif
 
 			if len(t.onupdate) > 0:
@@ -225,6 +267,11 @@ func update(deltatime):
 					fct.call_func()
 			if p >= 1:
 				remove(i)
+				if len(self.obj_tweens[t.obj.get_ref()]) == 0:
+					for k in t.vars:
+						var v = t.vars[k]
+						if k == "ui_x":
+							t.obj.get_ref().rect_position.x = (v.start + v.diff)
 				if len(t.oncomplete):
 					for fct in t.oncomplete:
 						fct.call_func()
