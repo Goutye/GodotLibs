@@ -107,53 +107,42 @@ class Tween:
 			object = obj.get_ref()
 		if mode == 'absolute':
 			for key in varss:
+				var x = null
 				match key:
 					"x":
-						var x = object.get_transform().get_origin().x
-						vars[key] = { start = x, diff = varss[key] - x}
+						x = object.get_transform().get_origin().x
 					"y":
-						var y = object.get_transform().get_origin().y
-						vars[key] = { start = y, diff = varss[key] - y}
+						x = object.get_transform().get_origin().y
 					"z":
-						var z = object.get_transform().get_origin().z
-						vars[key] = {start = z, diff = varss[key] - z}
+						x = object.get_transform().get_origin().z
 					"ui_x":
-						var x = object.rect_position.x
-						vars[key] = { start = x, diff = varss[key] - x}
+						x = object.rect_position.x
 					"ui_y":
-						var x = object.rect_position.y
-						vars[key] = { start = x, diff = varss[key] - x}
+						x = object.rect_position.y
 					"angle":
-						var angle = 0
-						vars[key] = {start = angle, diff = varss[key] - angle}
+						x = 0
 					_:
-						var x = object[key]
-						vars[key] = {start = x, diff = varss[key] - x}
-						
+						x = object[key]
+				vars[key] = { start = x, diff = varss[key] - x}	
 		else:
 			for key in varss:
+				var x = null
 				match key:
 					"x":
-						var x = object.get_transform().get_origin().x
-						vars[key] = { start = x, diff = varss[key]}
+						x = object.get_transform().get_origin().x
 					"y":
-						var y = object.get_transform().get_origin().y
-						vars[key] = { start = y, diff = varss[key]}
+						x = object.get_transform().get_origin().y
 					"z":
-						var z = object.get_transform().get_origin().z
-						vars[key] = {start = z, diff = varss[key]}
+						x = object.get_transform().get_origin().z
 					"ui_x":
-						var x = object.rect_position.x
-						vars[key] = { start = x, diff = varss[key]}
+						x = object.rect_position.x
 					"ui_y":
-						var x = object.rect_position.y
-						vars[key] = { start = x, diff = varss[key]}
+						x = object.rect_position.y
 					"angle":
-						var angle = 0
-						vars[key] = {start = angle, diff = varss[key]}
+						x = 0
 					_:
-						var x = object[key]
-						vars[key] = {start = x, diff = varss[key]}
+						x = object[key]
+				vars[key] = { start = x, diff = varss[key]}
 
 	func after(time, vars, mode='relative'):
 		var t = flux.Tween.new(self.obj, time, vars, mode, flux)
@@ -225,53 +214,45 @@ func update(deltatime):
 			var x = (1 if p >= 1 else Easing.apply(t._ease, t._ease_type, p))
 			for k in t.vars:
 				var v = t.vars[k]
-				if k == "x":
-					if not t.var_prev.has(k):
-						t.var_prev[k] = 0
-					var xvDif = x * v.diff
-					t.obj.get_ref().translate(Vector2(xvDif - t.var_prev[k], 0))
-					t.var_prev[k] = xvDif
-				elif k == "ui_x":
-					if not t.var_prev.has(k):
-						t.var_prev[k] = 0
-					var xvDif = x * v.diff
-					t.obj.get_ref().rect_position.x += (xvDif - t.var_prev[k])
-					t.var_prev[k] = floor(xvDif)
-				elif k == "ui_y":
-					if not t.var_prev.has(k):
-						t.var_prev[k] = 0
-					var xvDif = x * v.diff
-					t.obj.get_ref().rect_position.y += (xvDif - t.var_prev[k])
-					t.var_prev[k] = floor(xvDif)
-				elif k == "y":
-					if not t.var_prev.has(k):
-						t.var_prev[k] = 0
-					var xvDif = x * v.diff
-					t.obj.get_ref().translate(Vector2(0, xvDif - t.var_prev[k]))
-					t.var_prev[k] = xvDif
-				elif k == "angle":
-					if not t.var_prev.has(k):
-						t.var_prev[k] = 0
-					var xvDif = x * v.diff
-					t.obj.get_ref().rotate(xvDif - t.var_prev[k])
-					t.var_prev[k] = xvDif
-				else:
-					if not t.var_prev.has(k):
-						t.var_prev[k] = 0
-					var xvDif = x * v.diff
-					t.obj.get_ref()[k] += xvDif - t.var_prev[k]
-					t.var_prev[k] = xvDif
+				if not t.var_prev.has(k):
+					t.var_prev[k] = 0
+				var xvDif = x * v.diff
+				match k:
+					"x":
+						t.obj.get_ref().translate(Vector2(xvDif - t.var_prev[k], 0))
+					"y":
+						t.obj.get_ref().translate(Vector2(0, xvDif - t.var_prev[k]))
+					"z":
+						t.obj.get_ref().translate(Vector3(0, 0, xvDif - t.var_prev[k]))
+					"ui_x":
+						t.obj.get_ref().rect_position.x += (xvDif - t.var_prev[k])
+					"ui_y":
+						t.obj.get_ref().rect_position.y += (xvDif - t.var_prev[k])
+					"angle":
+						t.obj.get_ref().rotate(xvDif - t.var_prev[k])
+					_:
+						t.obj.get_ref()[k] += xvDif - t.var_prev[k]
+				match k:
+					"ui_x":
+						continue
+					"ui_y":
+						t.var_prev[k] = floor(xvDif)
+					_:
+						t.var_prev[k] = xvDif
 
 			if len(t.onupdate) > 0:
 				for fct in t.onupdate:
 					fct.call_func()
 			if p >= 1:
 				remove(i)
+				#Fix for UI when too many tweens would sweep the UI element away
 				if len(self.obj_tweens[t.obj.get_ref()]) == 0:
 					for k in t.vars:
 						var v = t.vars[k]
 						if k == "ui_x":
 							t.obj.get_ref().rect_position.x = (v.start + v.diff)
+						elif k == "ui_y":
+							t.obj.get_ref().rect_position.y = (v.start + v.diff)
 				if len(t.oncomplete):
 					for fct in t.oncomplete:
 						fct.call_func()
